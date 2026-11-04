@@ -1,0 +1,2 @@
+# Kalkulator-produkcji
+Kalkulator produkcji
