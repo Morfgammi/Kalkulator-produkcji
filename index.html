@@ -36,11 +36,15 @@ button.remove-entry:active{background:#991b1b}
 .muted{color:#64748b;font-size:12px}.hidden{display:none}.notice{font-size:12px;color:#64748b;line-height:1.4}.qtyButtons{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:6px 0 10px}.qtyChoice{padding:11px 4px;border:2px solid #cbd5e1;border-radius:9px;background:#fff;color:#172f4d;font-weight:800;font-size:16px;-webkit-appearance:none;appearance:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background-color .08s,border-color .08s,transform .08s}.qtyChoice:active{transform:scale(.96);background:#dbeafe}.qtyChoice.active,.qtyChoice[aria-pressed="true"]{background:#172f4d!important;color:#fff!important;border:2px solid #0b1f36!important;box-shadow:inset 0 0 0 1px #fff,0 2px 5px rgba(15,23,42,.22)}#pieceQty{grid-template-columns:repeat(5,1fr)}
 .selection-readout{display:block;margin:8px 0 16px;color:#176344;font-size:13px;line-height:1.35;font-weight:700;min-height:18px;padding-left:2px}.countField{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px}.countField label{margin:2px 0 5px}.countField input{padding:9px}
 h2{font-size:18px;margin:0 0 8px}
+
+.history-metric{min-width:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 10px;line-height:1.15;font-weight:700}
+.history-metric .metric-hours{font-size:13px;color:#64748b}
+.history-metric .metric-pct{font-size:15px}
 </style></head>
 <body>
 <h1>Kalkulator produkcji</h1><div class="sub">Obliczanie normy, czasu rzeczywistego i wydajności</div>
 <div class="panel"><label for="workDate">Data produkcji</label><input id="workDate" type="date">
-<div><label for="shift">Zmiana</label><div class="grid" style="grid-template-columns:1fr auto;align-items:end"><select id="shift"><option value="8">06:00–14:00</option><option value="10">06:00–16:00</option><option value="12">06:00–18:00</option></select><button type="button" class="qtyChoice" id="extraHourBtn" aria-pressed="false">+1 година</button></div><div class="muted" id="shiftHoursLabel" style="margin-top:6px">Разом: 8 годин</div></div></div>
+<div><label for="shift">Zmiana</label><div class="grid" style="grid-template-columns:1fr auto;align-items:end"><select id="shift"><option value="8">06:00–14:00</option><option value="10">06:00–16:00</option><option value="12">06:00–18:00</option></select><button type="button" class="qtyChoice" id="extraHourBtn" aria-pressed="false">+1h</button></div><div class="muted" id="shiftHoursLabel" style="margin-top:6px;font-size:17px;font-weight:800;color:#176344">Разом: 8 h</div></div></div>
 <div class="panel" id="timerPanel">
  <h2>Облік фактичного часу</h2>
  <div class="stats"><div class="stat"><small>Час від початку зміни</small><b id="elapsedTotal">00:00:00</b></div><div class="stat"><small>Час від останнього результату</small><b id="elapsedLap">00:00:00</b></div></div>
@@ -107,7 +111,7 @@ h2{font-size:18px;margin:0 0 8px}
 <button class="primary" id="save">Zapisz dzień</button>
 </div>
 <div class="panel"><h2>Статистика та лідери дня</h2><div id="savedDayStats" class="muted">Статистика з’явиться після збереження дня.</div><button type="button" class="danger" id="clearHistory" style="margin-top:14px"><span aria-hidden="true">🗑</span> Видалити історію</button></div>
-<div class="panel"><h2>Історія днів</h2><div id="history" class="muted">Історія порожня.</div></div>
+<div class="panel"><h2>Історія днів</h2><div id="history" class="muted">Історія порожня.</div><button type="button" class="danger" id="clearHistoryFromHistory" style="margin-top:14px"><span aria-hidden="true">🗑</span> Видалити історію</button></div>
 <script>
 
 const $=id=>document.getElementById(id);
@@ -160,7 +164,7 @@ function updateShiftHoursUI(){
  const base=Number($("shift").value||8);
  $("extraHourBtn").classList.toggle("active",extraShiftHour===1);
  $("extraHourBtn").setAttribute("aria-pressed",String(extraShiftHour===1));
- $("shiftHoursLabel").textContent=`Разом: ${selectedShiftHours()} годин (зміна ${base} + ${extraShiftHour})`;
+ $("shiftHoursLabel").textContent=`Разом: ${selectedShiftHours()} h`;
 }
 $("shift").addEventListener("change",updateShiftHoursUI);
 $("extraHourBtn").addEventListener("click",()=>{extraShiftHour=extraShiftHour?0:1;updateShiftHoursUI()});
@@ -169,10 +173,11 @@ function displayProduct(p){return p==="R - ROTOR"||p==="R"?"R — ROTOR":p==="P 
 let current="statyka", entries=[];
 const TIMER_KEY="prodShiftTimer";
 function timerData(){try{return JSON.parse(localStorage.getItem(TIMER_KEY)||"null")}catch(e){return null}}
+function localDateString(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${day}`}
 function elapsedSince(ts){return Math.max(0,Math.floor((Date.now()-ts)/1000))}
 function ensureTimer(){
  const d=new Date();d.setHours(6,0,0,0);
- const day=d.toISOString().slice(0,10);
+ const day=localDateString(d);
  let t=timerData();
  if(!t||t.day!==day){t={day,start:d.getTime(),last:d.getTime()};localStorage.setItem(TIMER_KEY,JSON.stringify(t))}
  return t;
@@ -207,7 +212,7 @@ function updateLiveStats(){
  setProductivity((norm/43200)*100,"eff12","eff12Card");
 }
 ensureTimer();
-setInterval(updateTimer,1000);
+setInterval(()=>{updateTimer();const today=localDateString();if($("workDate").value!==today)$("workDate").value=today;},1000);
 function fmt(s){s=Math.max(0,Math.round(s));let h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return [h,m,x].map(n=>String(n).padStart(2,"0")).join(":")}
 function parseTime(v){let a=v.trim().split(":").map(Number);if(a.length!==2||a.some(n=>!Number.isFinite(n)||n<0))return null;return a[0]*3600+a[1]*60}
 function updateSelectionLabels(){
@@ -237,7 +242,7 @@ function hint(){
 }
 function setTab(t){
  current=t;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===t));
- $("product").innerHTML=Object.keys(norms[t]).map(p=>`<option value="${p}">${p}</option>`).join("");
+ $("product").innerHTML=Object.keys(norms[t]).map(p=>`<option value="${p}">${displayProduct(p)}</option>`).join("");
  $("extrasWrap").classList.toggle("hidden",t==="statyka");
  $("pieceQtyWrap").classList.toggle("hidden",t==="dynamika");
  $("dynamikaQtyNote").classList.toggle("hidden",t!=="dynamika");
@@ -329,27 +334,32 @@ function buildDayStats(dayEntries){
  return [...map.values()].map(g=>({...g,pct:g.actual>0?g.norm/g.actual*100:0,avgPerPiece:g.qty>0?g.actual/g.qty:0}));
 }
 
+function effClass(pct){return pct<100?"eff-low":pct<110?"eff-good":pct<125?"eff-high":pct<140?"eff-great":pct<160?"eff-excellent":"eff-extreme";}
+
 function renderSavedStats(day){
- const el=$("savedDayStats");if(!day||!day.stats||!day.stats.length){el.textContent="Статистика з’явиться після збереження дня.";return}
+ const el=$("savedDayStats");if(!day){el.textContent="Статистика з’явиться після збереження дня.";return}if(!day.stats||!day.stats.length){el.innerHTML=`<div class="stats" style="margin-top:10px"><div class="stat"><small>Відпрацьовано годин</small><b>${Number(day.shiftHours||0)} h</b></div></div><div class="muted" style="margin-top:6px">Результатів виробництва немає. Продуктивність не розраховувалася.</div>`;return}
  const byPct=[...day.stats].filter(g=>g.actual>0&&g.norm>0).sort((a,b)=>b.pct-a.pct);
- const effClass=pct=>pct<100?"eff-low":pct<110?"eff-good":pct<125?"eff-high":pct<140?"eff-great":pct<160?"eff-excellent":"eff-extreme";
  const ranking=byPct.map((g,i)=>`<div class="item"><div><b>${i+1}. ${displayProduct(g.product)} ${g.model}</b><div class="muted">${g.tab} · ${g.qty} шт. · фактично ${fmt(g.actual)} · норма ${fmt(g.norm)}</div></div><b class="${effClass(g.pct)}" style="font-size:18px;white-space:nowrap">${g.pct.toFixed(1)}%</b></div>`).join("");
- el.innerHTML=`<div class="muted">Звіт за ${day.date}. Продуктивність згрупована за типом і номіналом.</div><h3 style="font-size:15px;margin:12px 0 6px">Рейтинг за продуктивністю</h3>${ranking||'<div class="muted">Немає результатів для рейтингу.</div>'}`;
+ const overallPct=Number(day.totalActual)>0?Number(day.totalNorm||0)/Number(day.totalActual)*100:null;
+ const overallClass=overallPct===null?"":effClass(overallPct);
+ el.innerHTML=`<div class="muted">Звіт за ${day.date}. Продуктивність згрупована за типом і номіналом.</div><div class="stats" style="margin-top:10px"><div class="stat"><small>Загальна продуктивність дня</small><b class="${overallClass}">${overallPct===null?"—":overallPct.toFixed(1)+"%"}</b></div><div class="stat"><small>Відпрацьовано годин</small><b>${Number(day.shiftHours||0)} h</b></div></div><h3 style="font-size:15px;margin:12px 0 6px">Рейтинг за продуктивністю</h3>${ranking||'<div class="muted">Немає результатів для рейтингу.</div>'}`;
 }
 
-$("save").onclick=()=>{let date=$("workDate").value;if(!date){alert("Вибери дату.");return}if(!entries.length){alert("Немає результатів для збереження.");return}let hist=JSON.parse(localStorage.getItem("prodHistory")||"[]");let totalNorm=entries.reduce((a,e)=>a+e.norm*e.qty,0),totalActual=entries.reduce((a,e)=>a+e.actual,0),qty=entries.reduce((a,e)=>a+e.qty,0);let day={date,entries:JSON.parse(JSON.stringify(entries)),totalNorm,totalActual,qty,shiftHours:selectedShiftHours(),baseShiftHours:Number($("shift").value),extraShiftHour,stats:buildDayStats(entries)};hist.unshift(day);localStorage.setItem("prodHistory",JSON.stringify(hist));renderSavedStats(day);entries=[];extraShiftHour=0;updateShiftHoursUI();render();showHistory();alert("День збережено. Рейтинг продуктивності сформовано.")};
+$("save").onclick=()=>{try{const date=localDateString();$("workDate").value=date;let hist=JSON.parse(localStorage.getItem("prodHistory")||"[]");if(!Array.isArray(hist))hist=[];const totalNorm=entries.reduce((a,e)=>a+(Number(e.norm)||0)*(Number(e.qty)||0),0),totalActual=entries.reduce((a,e)=>a+(Number(e.actual)||0),0),qty=entries.reduce((a,e)=>a+(Number(e.qty)||0),0);const day={date,entries:JSON.parse(JSON.stringify(entries)),totalNorm,totalActual,qty,shiftHours:selectedShiftHours(),baseShiftHours:Number($("shift").value)||8,extraShiftHour,stats:buildDayStats(entries)};hist.unshift(day);localStorage.setItem("prodHistory",JSON.stringify(hist));renderSavedStats(day);entries=[];extraShiftHour=0;updateShiftHoursUI();render();showHistory();alert(qty===0?"День збережено: записано лише робочі години.":"День збережено.")}catch(err){console.error("Помилка збереження дня:",err);alert("Не вдалося зберегти день. Перевір, чи браузер дозволяє зберігати дані сайту.")}};
 function showHistory(){
  let h=JSON.parse(localStorage.getItem("prodHistory")||"[]");
  $("history").innerHTML=h.length?h.map((d,i)=>{
-  const pct=d.totalActual?(d.totalNorm/d.totalActual*100):0;
-  const prev=h[i+1],prevPct=prev&&prev.totalActual?(prev.totalNorm/prev.totalActual*100):null;
+  const pct=d.totalActual&&d.totalNorm?(d.totalNorm/d.totalActual*100):null;
+  const prev=h[i+1],prevPct=prev&&prev.totalActual&&prev.totalNorm?(prev.totalNorm/prev.totalActual*100):null;
   let compare="";
-  if(prevPct!==null){const diff=pct-prevPct;const up=diff>=0;compare=`<span style="font-weight:700;color:${up?"#16a34a":"#dc2626"}">${up?"↑":"↓"} ${Math.abs(diff).toFixed(1)} п.п.</span><span class="muted"> порівняно з попереднім днем</span>`}
+  if(prevPct!==null&&pct!==null){const diff=pct-prevPct;const up=diff>=0;compare=`<span style="font-weight:700;color:${up?"#16a34a":"#dc2626"}">${up?"↑":"↓"} ${Math.abs(diff).toFixed(1)} п.п.</span><span class="muted"> порівняно з попереднім днем</span>`}
   const dateObj=new Date(d.date+"T12:00:00");
   const weekday=new Intl.DateTimeFormat("uk-UA",{weekday:"long"}).format(dateObj);
   const hours=Number(d.shiftHours||d.shift||0);
-  const shiftLabel=hours?`06:00–${String(6+hours).padStart(2,"0")}:00 · ${hours} год. відпрацьовано`:`зміна не вказана`;
-  return `<div class="item"><div><b>${d.date} · ${weekday}</b><div class="muted">Зміна: ${shiftLabel} · ${d.qty} шт. · норма ${fmt(d.totalNorm)} · фактично ${fmt(d.totalActual)} · продуктивність ${pct.toFixed(1)}%</div><div>${compare}</div></div><button class="secondary" data-day="${i}">Статистика</button></div>`
+  const shiftLabel=hours?`06:00–${String(6+hours).padStart(2,"0")}`:`зміна не вказана`;
+  const metricPct=pct===null?"":`<span class="metric-pct ${effClass(pct)}">${pct.toFixed(1)}%</span>`;
+  const metricHours=hours?`<span class="metric-hours">${hours} h</span>`:"";
+  return `<div class="item"><div><b>${d.date} · ${weekday}</b><div class="muted">Зміна: ${shiftLabel}${d.qty?` · ${d.qty} шт. · норма ${fmt(d.totalNorm)} · фактично ${fmt(d.totalActual)}`:" · без виробничих результатів"}</div><div>${compare}</div></div><button class="secondary history-metric" data-day="${i}">${metricPct}${metricHours}</button></div>`
  }).join(""):"Історія порожня.";
  const totalHours=h.reduce((sum,d)=>sum+Number(d.shiftHours||d.shift||0),0);
  const totalDays=h.length;
@@ -361,16 +371,20 @@ function showHistory(){
  document.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>renderSavedStats(h[Number(b.dataset.day)]));
  if(h.length&&$("savedDayStats").textContent.includes("з’явиться"))renderSavedStats(h[0]);
 }
-$("clearHistory").addEventListener("click",()=>{
+function deleteSavedHistory(){
  if(!confirm("Видалити всю історію збережених днів? Цю дію не можна скасувати."))return;
- localStorage.removeItem("prodHistory");showHistory();
-});
+ localStorage.removeItem("prodHistory");
+ $("savedDayStats").textContent="Статистика з’явиться після збереження дня.";
+ showHistory();
+}
+$("clearHistory").addEventListener("click",deleteSavedHistory);
+$("clearHistoryFromHistory").addEventListener("click",deleteSavedHistory);
 // Guided drawing review: user confirms counts; no automatic visual classification yet.
 const scanTypes={statyka:["R - ROTOR","P - CHEX"],dynamika:["R","P"],dostawki:["V","F","E","C","Hw","He","Tłumik"]};
 function buildScanForm(){
  const types=scanTypes[current]||[];
  $("scanModel").innerHTML=Object.keys(norms[current][types[0]]||{}).map(m=>`<option>${m}</option>`).join("");
- $("scanCounts").innerHTML=types.map((t,i)=>`<div class="countField"><label for="scanCount${i}">${t}</label><input id="scanCount${i}" type="number" inputmode="numeric" min="0" max="99" value="0"></div>`).join("");
+ $("scanCounts").innerHTML=types.map((t,i)=>`<div class="countField"><label for="scanCount${i}">${displayProduct(t)}</label><input id="scanCount${i}" type="number" inputmode="numeric" min="0" max="99" value="0"></div>`).join("");
  updateScanSummary();
 }
 function updateScanSummary(){
@@ -396,6 +410,6 @@ $("addScan").addEventListener("click",()=>{
  timer.last=now;localStorage.setItem(TIMER_KEY,JSON.stringify(timer));updateTimer();$("scanElastic").checked=false;$("scanDamper").checked=false;
  types.forEach((_,i)=>$("scanCount"+i).value=0);updateScanSummary();render();alert("Підтверджені секції додано до результатів дня.");
 });
-$("workDate").value=new Date().toISOString().slice(0,10);setTab("statyka");
+$("workDate").value=localDateString();$("workDate").readOnly=true;$("workDate").setAttribute("aria-readonly","true");$("workDate").style.pointerEvents="none";setTab("statyka");
 markChoice("elasticQty",0,"elasticQtySelected");markChoice("damperQty",0,"damperQtySelected");buildScanForm();render();showHistory();updateTimer();
 </script></body></html>
