@@ -48,7 +48,6 @@ h2{font-size:18px;margin:0 0 8px}
 <div class="panel" id="timerPanel">
  <h2>Облік фактичного часу</h2>
  <div class="stats"><div class="stat"><small>Час від початку зміни</small><b id="elapsedTotal">00:00:00</b></div><div class="stat"><small>Час від останнього результату</small><b id="elapsedLap">00:00:00</b></div></div>
- <div style="margin-top:12px;text-align:center"><div class="muted" style="margin-bottom:7px">Додатковий час до наступного результату</div><div class="grid" style="max-width:360px;margin:0 auto"><button type="button" class="qtyChoice" id="addExtraHour">+1 год</button><button type="button" class="qtyChoice" id="addExtraHalfHour">+30 хв</button></div><div id="extraTimeTotal" class="selection-readout" style="margin:7px 0 0">Додано: 00:00:00</div><button type="button" class="secondary" id="resetExtraTime" style="margin-top:5px">Скинути додатковий час</button></div>
  <div class="muted" id="timerState" style="margin-top:8px">Відлік автоматично починається о 06:00.</div>
 </div>
 
@@ -84,7 +83,16 @@ h2{font-size:18px;margin:0 0 8px}
 <div class="panel" id="manualEntryPanel">
 <label for="product">Produkt / typ</label><select id="product"></select><div id="productSelected" class="selection-readout" aria-live="polite">Вибрано: —</div>
 <label for="model">Model</label><select id="model"></select><div id="modelSelected" class="selection-readout" aria-live="polite">Вибрано: —</div>
-<div id="baseNormDisplay" class="norm-display">Нормативний час: <strong id="baseNormTime">—</strong></div>
+<div id="baseNormDisplay" class="norm-display">Нормативний час: <strong id="baseNormTime">—</strong>
+ <div style="display:flex;gap:8px;margin-top:9px;justify-content:center">
+  <button type="button" class="qtyChoice" id="addExtraHour" style="flex:1;max-width:130px">+1 год</button>
+  <button type="button" class="qtyChoice" id="addExtraHalfHour" style="flex:1;max-width:130px">+30 хв</button>
+  <button type="button" class="qtyChoice" id="addExtraTen" style="flex:1;max-width:130px">+10 хв</button>
+  <button type="button" class="qtyChoice" id="addExtraFive" style="flex:1;max-width:130px">+5 хв</button>
+ </div>
+ <div id="extraTimeTotal" class="selection-readout" style="margin:7px 0 0;text-align:center">Додано до норми: 00:00:00</div>
+ <button type="button" class="secondary" id="resetExtraTime" style="display:block;margin:5px auto 0">Скинути додатковий час</button>
+</div>
 <div id="pieceQtyWrap"><label>Кількість штук</label><div class="qtyButtons" id="pieceQty"></div><div id="pieceQtySelected" class="selection-readout" aria-live="polite">Вибрано: 1</div></div>
 <div id="dynamikaQtyNote" class="notice hidden"></div>
 <div class="notice">Фактичний час визначається автоматично: від початку зміни або від попереднього натискання «Додати результат».</div>
@@ -176,10 +184,10 @@ updateShiftHoursUI();
 function displayProduct(p){return p==="R - ROTOR"||p==="R"?"R — ROTOR":p==="P - CHEX"||p==="P"?"P — CHEX":p;}
 let current="statyka", entries=[];
 const TIMER_KEY="prodShiftTimer", DRAFT_KEY="prodCurrentDraft", STATS_KEY="prodDayStats";
-let activeDay=localDateString(),pendingExtraSeconds=0;
-function saveDraft(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({date:localDateString(),entries,current,selectedPieces,selectedExtras,shift:$("shift").value,extraShiftHour,pendingExtraSeconds}))}catch(e){console.warn("Не вдалося зберегти поточні дані",e)}}
+let activeDay=localDateString(),selectedNormExtraSeconds=0;
+function saveDraft(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({date:localDateString(),entries,current,selectedPieces,selectedExtras,shift:$("shift").value,extraShiftHour,selectedNormExtraSeconds}))}catch(e){console.warn("Не вдалося зберегти поточні дані",e)}}
 function readJSON(key,fallback){try{const v=JSON.parse(localStorage.getItem(key)||"null");return v===null?fallback:v}catch(e){return fallback}}
-function restoreDraft(){const d=readJSON(DRAFT_KEY,null);if(!d)return;if(d.date!==localDateString()){localStorage.removeItem(DRAFT_KEY);return}entries=Array.isArray(d.entries)?d.entries:[];current=["statyka","dynamika","dostawki"].includes(d.current)?d.current:"statyka";selectedPieces=Math.max(1,safeCount(d.selectedPieces,1));if(d.shift&&["8","10","12"].includes(String(d.shift)))$("shift").value=String(d.shift);extraShiftHour=Number.isFinite(Number(d.extraShiftHour))?Math.trunc(Number(d.extraShiftHour)):0;if(d.selectedExtras){selectedExtras.elasticQty=Math.min(4,safeCount(d.selectedExtras.elasticQty));selectedExtras.damperQty=Math.min(2,safeCount(d.selectedExtras.damperQty))}pendingExtraSeconds=Math.max(0,safeCount(d.pendingExtraSeconds,0));}
+function restoreDraft(){const d=readJSON(DRAFT_KEY,null);if(!d)return;if(d.date!==localDateString()){localStorage.removeItem(DRAFT_KEY);return}entries=Array.isArray(d.entries)?d.entries:[];current=["statyka","dynamika","dostawki"].includes(d.current)?d.current:"statyka";selectedPieces=Math.max(1,safeCount(d.selectedPieces,1));if(d.shift&&["8","10","12"].includes(String(d.shift)))$("shift").value=String(d.shift);extraShiftHour=Number.isFinite(Number(d.extraShiftHour))?Math.trunc(Number(d.extraShiftHour)):0;if(d.selectedExtras){selectedExtras.elasticQty=Math.min(4,safeCount(d.selectedExtras.elasticQty));selectedExtras.damperQty=Math.min(2,safeCount(d.selectedExtras.damperQty))}selectedNormExtraSeconds=Math.max(0,safeCount(d.selectedNormExtraSeconds??d.pendingExtraSeconds,0));}
 function timerData(){try{return JSON.parse(localStorage.getItem(TIMER_KEY)||"null")}catch(e){return null}}
 function localDateString(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${day}`}
 function elapsedSince(ts){return Math.max(0,Math.floor((Date.now()-ts)/1000))}
@@ -222,30 +230,49 @@ function updateLiveStats(){
 ensureTimer();
 setInterval(()=>{updateTimer();$("workDate").max=localDateString();if($("workDate").value>localDateString())$("workDate").value=localDateString();},1000);
 function fmt(s){s=Math.max(0,Math.round(s));let h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return [h,m,x].map(n=>String(n).padStart(2,"0")).join(":")}
-function updateExtraTimeUI(){if($("extraTimeTotal"))$("extraTimeTotal").textContent="Додано: "+fmt(pendingExtraSeconds);}
-$("addExtraHour").addEventListener("click",()=>{pendingExtraSeconds+=3600;updateExtraTimeUI();saveDraft();});
-$("addExtraHalfHour").addEventListener("click",()=>{pendingExtraSeconds+=1800;updateExtraTimeUI();saveDraft();});
-$("resetExtraTime").addEventListener("click",()=>{pendingExtraSeconds=0;updateExtraTimeUI();saveDraft();});
+function updateExtraTimeUI(){
+ const base=Number(norms[current]?.[$("product").value]?.[$("model").value]||0);
+ const total=base+selectedNormExtraSeconds;
+ if($("baseNormTime"))$("baseNormTime").textContent=fmt(total);
+ if($("extraTimeTotal"))$("extraTimeTotal").textContent="Додано до норми: "+fmt(selectedNormExtraSeconds);
+}
+$("addExtraHour").addEventListener("click",()=>{selectedNormExtraSeconds+=3600;updateExtraTimeUI();saveDraft();});
+$("addExtraHalfHour").addEventListener("click",()=>{selectedNormExtraSeconds+=1800;updateExtraTimeUI();saveDraft();});
+$("addExtraTen").addEventListener("click",()=>{selectedNormExtraSeconds+=600;updateExtraTimeUI();saveDraft();});
+$("addExtraFive").addEventListener("click",()=>{selectedNormExtraSeconds+=300;updateExtraTimeUI();saveDraft();});
+$("resetExtraTime").addEventListener("click",()=>{selectedNormExtraSeconds=0;updateExtraTimeUI();saveDraft();});
 function parseTime(v){let a=v.trim().split(":").map(Number);if(a.length!==2||a.some(n=>!Number.isFinite(n)||n<0))return null;return a[0]*3600+a[1]*60}
 function updateSelectionLabels(){
  const p=$("product").value, m=$("model").value;
  $("productSelected").textContent="Вибрано: "+(p?displayProduct(p):"—");
  $("modelSelected").textContent="Вибрано: "+(m||"—");
 }
+const LAST_SELECTION_KEY="prodLastSelections";
+function getLastSelections(){return readJSON(LAST_SELECTION_KEY,{})||{}}
+function rememberSelection(tab=current){
+ const all=getLastSelections();
+ all[tab]={product:$("product").value,model:$("model").value};
+ try{localStorage.setItem(LAST_SELECTION_KEY,JSON.stringify(all))}catch(e){}
+ saveDraft();
+}
 function options(){
  const productSelect=$("product");
- const p=Object.keys(norms[current])[0];
+ const all=getLastSelections(), saved=all[current]||{};
+ const productKeys=Object.keys(norms[current]);
+ const p=productKeys.includes(saved.product)?saved.product:productKeys[0];
  productSelect.innerHTML=Object.keys(norms[current]).map(x=>`<option value="${x}">${displayProduct(x)}</option>`).join("");
  productSelect.value=p;
  const models=norms[current][p];
  $("model").innerHTML=Object.keys(models).map(m=>`<option value="${m}">${m}</option>`).join("");
+ const savedModel=saved.product===p?saved.model:null;
+ $("model").value=Object.prototype.hasOwnProperty.call(models,savedModel)?savedModel:Object.keys(models)[0];
  updateSelectionLabels();hint();
 }
 function hint(){
  let model=$("model").value,n=norms[current][$("product").value][model];
  updateSelectionLabels();
  $("normHint").textContent="";
- if($("baseNormTime"))$("baseNormTime").textContent=fmt(n);
+ if($("baseNormTime"))$("baseNormTime").textContent=fmt(n+selectedNormExtraSeconds);
  if($("dynamikaNormTime"))$("dynamikaNormTime").textContent=fmt(n);
  if(current!=="statyka"){
   $("elasticTime").textContent=extraNorms.elastic[model]!==undefined?"Dodatek: "+fmt(extraSeconds("elastic",model))+" / szt.":"Час для "+model+" ще потрібно додати з таблиці.";
@@ -268,10 +295,10 @@ function setTab(t){
   markChoice("pieceQty",1,"pieceQtySelected");
  }else{$("pieceQty").innerHTML="";$('pieceQtySelected').textContent="";}
  resetExtraButtons();
- options();if($("scanModel"))buildScanForm();saveDraft()
+ options();rememberSelection();if($("scanModel"))buildScanForm();saveDraft()
 }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
-$("product").addEventListener("change",()=>{const p=$("product").value;const models=norms[current][p]||{};$("model").innerHTML=Object.keys(models).map(m=>`<option value="${m}">${m}</option>`).join("");hint();});$("model").addEventListener("change",()=>{hint();updateSelectionLabels()});
+$("product").addEventListener("change",()=>{selectedNormExtraSeconds=0;updateExtraTimeUI();const p=$("product").value;const models=norms[current][p]||{};$("model").innerHTML=Object.keys(models).map(m=>`<option value="${m}">${m}</option>`).join("");const all=getLastSelections(),saved=all[current]||{};$("model").value=Object.prototype.hasOwnProperty.call(models,saved.model)?saved.model:Object.keys(models)[0];hint();rememberSelection();});$("model").addEventListener("change",()=>{selectedNormExtraSeconds=0;updateExtraTimeUI();hint();updateSelectionLabels();rememberSelection()});
 function render(){
 updateLiveStats();
 $("rows").innerHTML=entries.length?entries.map((e,i)=>`<div class="item"><div><b>${e.tab} · ${displayProduct(e.product)} ${e.model}</b><div class="muted">${e.qty} szt. · ${e.elasticQty?` · Еластичок ${e.elasticQty}`:""}${e.damperQty?` · Przepustниц ${e.damperQty}`:""} · norma ${fmt(e.norm*e.qty)} · фактично ${fmt(e.actual)}</div></div><button class="remove-entry" data-del="${i}">Usuń</button></div>`).join(""):"Brak dodanych wyników.";
@@ -324,14 +351,14 @@ function resetExtraButtons(){
 $("add").onclick=()=>{
  let qty=current==="dynamika"?1:selectedPieces,product=$("product").value,model=$("model").value,norm=norms[current][product][model],t=timerData();
  if(!t){alert("Не вдалося запустити автоматичний облік часу.");return}
- const now=Date.now(),actual=Math.floor((now-t.last)/1000)+pendingExtraSeconds;
+ const now=Date.now(),actual=Math.floor((now-t.last)/1000);
  if(actual<=0){alert("Минуло замало часу для запису результату.");return}
  let elasticQty=current!=="statyka"?selectedExtras.elasticQty:0,damperQty=current!=="statyka"?selectedExtras.damperQty:0;
  if((elasticQty&&extraNorms.elastic[model]===undefined)||(damperQty&&extraNorms.damper[model]===undefined)){alert("Для цієї моделі ще немає точного часу додаткової операції.");return}
- let adjustedNorm=Number(norm)+safeCount(elasticQty)*Number(extraSeconds("elastic",model)||0)+safeCount(damperQty)*Number(extraSeconds("damper",model)||0);
+ let adjustedNorm=Number(norm)+selectedNormExtraSeconds+safeCount(elasticQty)*Number(extraSeconds("elastic",model)||0)+safeCount(damperQty)*Number(extraSeconds("damper",model)||0);
  if(!Number.isFinite(adjustedNorm)||!Number.isFinite(actual)||!Number.isFinite(qty)){alert("Помилка числових даних. Перевір модель і кількість.");return}
  entries.push({tab:labels[current],product,model,qty,norm:adjustedNorm,actual,elasticQty,damperQty});
- pendingExtraSeconds=0;updateExtraTimeUI();
+ selectedNormExtraSeconds=0;updateExtraTimeUI();
  t.last=now;localStorage.setItem(TIMER_KEY,JSON.stringify(t));
  selectedPieces=1;if(current!=="dynamika"){markChoice("pieceQty",selectedPieces,"pieceQtySelected");const plus=$("addOnePiece");if(plus)plus.textContent="+1";}resetExtraButtons();updateTimer();render();
 };
@@ -417,17 +444,17 @@ $("scanDamper").addEventListener("change",updateScanSummary);
 $("addScan").addEventListener("click",()=>{
  const model=$("scanModel").value,types=scanTypes[current]||[];let added=0;
  const timer=timerData();if(!timer){alert("Спочатку натисни «Почати зміну з 06:00».");return}
- const now=Date.now(),actual=Math.floor((now-timer.last)/1000)+pendingExtraSeconds;if(actual<=0){alert("Минуло замало часу для запису результату.");return}
+ const now=Date.now(),actual=Math.floor((now-timer.last)/1000);if(actual<=0){alert("Минуло замало часу для запису результату.");return}
  types.forEach((t,i)=>{const q=Math.max(0,Math.min(99,Number($("scanCount"+i).value)||0));if(q){entries.push({tab:labels[current],product:t,model,qty:q,norm:norms[current][t][model],actual:Math.round(actual*q/Math.max(1,types.reduce((sum,_,j)=>sum+Math.max(0,Number($("scanCount"+j).value)||0),0))),elastic:false,damper:false});added+=q}});
  if(!added){alert("Вкажи хоча б одну секцію.");return}
  if(current!=="statyka"&&($("scanElastic").checked||$("scanDamper").checked)){
    const base=entries[entries.length-1];const extra=( $("scanElastic").checked?extraSeconds("elastic",model):0)+($("scanDamper").checked?extraSeconds("damper",model):0);
    base.norm+=extra;
  }
- timer.last=now;localStorage.setItem(TIMER_KEY,JSON.stringify(timer));pendingExtraSeconds=0;updateExtraTimeUI();saveDraft();updateTimer();$("scanElastic").checked=false;$("scanDamper").checked=false;
+ timer.last=now;localStorage.setItem(TIMER_KEY,JSON.stringify(timer));selectedNormExtraSeconds=0;updateExtraTimeUI();saveDraft();updateTimer();$("scanElastic").checked=false;$("scanDamper").checked=false;
  types.forEach((_,i)=>$("scanCount"+i).value=0);updateScanSummary();render();alert("Підтверджені секції додано до результатів дня.");
 });
 $("workDate").value=localDateString();$("workDate").max=localDateString();$("workDate").readOnly=false;$("workDate").removeAttribute("aria-readonly");$("workDate").style.pointerEvents="auto";$("workDate").addEventListener("change",()=>{const today=localDateString();$("workDate").max=today;if($("workDate").value>today){$("workDate").value=today;alert("Не можна вибрати майбутню дату.");}saveDraft();});
-restoreDraft();const restoredTab=current;setTab(restoredTab);restoreDraft();updateExtraTimeUI();markChoice("pieceQty",selectedPieces,"pieceQtySelected");markChoice("elasticQty",selectedExtras.elasticQty,"elasticQtySelected");markChoice("damperQty",selectedExtras.damperQty,"damperQtySelected");updateShiftHoursUI();buildScanForm();render();showHistory();if(!localStorage.getItem(STATS_KEY)){const oldHistory=readJSON("prodHistory",[]);if(Array.isArray(oldHistory)&&oldHistory.length)localStorage.setItem(STATS_KEY,JSON.stringify(oldHistory));}const savedStats=readJSON(STATS_KEY,[]);if(Array.isArray(savedStats)&&savedStats.length)renderSavedStats(savedStats[0]);updateTimer();
+restoreDraft();const restoredTab=current;setTab(restoredTab);restoreDraft();updateExtraTimeUI();rememberSelection();markChoice("pieceQty",selectedPieces,"pieceQtySelected");markChoice("elasticQty",selectedExtras.elasticQty,"elasticQtySelected");markChoice("damperQty",selectedExtras.damperQty,"damperQtySelected");updateShiftHoursUI();buildScanForm();render();showHistory();if(!localStorage.getItem(STATS_KEY)){const oldHistory=readJSON("prodHistory",[]);if(Array.isArray(oldHistory)&&oldHistory.length)localStorage.setItem(STATS_KEY,JSON.stringify(oldHistory));}const savedStats=readJSON(STATS_KEY,[]);if(Array.isArray(savedStats)&&savedStats.length)renderSavedStats(savedStats[0]);updateTimer();
 setInterval(()=>{const today=localDateString();if(today!==activeDay){activeDay=today;entries=[];localStorage.removeItem(DRAFT_KEY);$("workDate").value=today;ensureTimer();render();}},1000);
 </script></body></html>
