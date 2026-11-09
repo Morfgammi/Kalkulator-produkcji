@@ -40,7 +40,7 @@ h2{font-size:18px;margin:0 0 8px}
 .history-metric{min-width:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 10px;line-height:1.15;font-weight:700}
 .history-metric .metric-hours{font-size:13px;color:#64748b}
 .history-metric .metric-pct{font-size:15px}
-</style></head>
+#hourlyRate{width:100%;max-width:110px;margin-top:8px;padding:8px 10px;box-sizing:border-box;font-size:16px;font-weight:600;background:#f1f5f9 !important;color:#64748b !important;-webkit-text-fill-color:#64748b !important;border:1px solid #cbd5e1;border-radius:10px;box-shadow:none;appearance:none;-webkit-appearance:none}#hourlyRate::placeholder{color:#94a3b8 !important;-webkit-text-fill-color:#94a3b8 !important}</style></head>
 <body>
 <h1>Kalkulator produkcji</h1><div class="sub">Obliczanie normy, czasu rzeczywistego i wydajności</div>
 <div class="panel"><label for="workDate">Data produkcji</label><input id="workDate" type="date">
@@ -388,7 +388,13 @@ function renderSavedStats(day){
 $("save").onclick=()=>{try{const date=$("workDate").value||localDateString();if(date>localDateString()){alert("Не можна зберегти запис на майбутню дату.");$("workDate").value=localDateString();return;}let hist=JSON.parse(localStorage.getItem("prodHistory")||"[]");if(!Array.isArray(hist))hist=[];const totalNorm=entries.reduce((a,e)=>a+(Number(e.norm)||0)*(Number(e.qty)||0),0),totalActual=entries.reduce((a,e)=>a+(Number(e.actual)||0),0),qty=entries.reduce((a,e)=>a+(Number(e.qty)||0),0);const day={date,entries:JSON.parse(JSON.stringify(entries)),totalNorm,totalActual,qty,shiftHours:selectedShiftHours(),baseShiftHours:Number($("shift").value)||8,extraShiftHour,stats:buildDayStats(entries)};hist.unshift(day);localStorage.setItem("prodHistory",JSON.stringify(hist));let dayStats=readJSON(STATS_KEY,[]);if(!Array.isArray(dayStats))dayStats=[];dayStats.unshift(day);localStorage.setItem(STATS_KEY,JSON.stringify(dayStats));renderSavedStats(day);entries=[];localStorage.removeItem(DRAFT_KEY);extraShiftHour=0;updateShiftHoursUI();render();showHistory();alert(qty===0?"День збережено: записано лише робочі години.":"День збережено.")}catch(err){console.error("Помилка збереження дня:",err);alert("Не вдалося зберегти день. Перевір, чи браузер дозволяє зберігати дані сайту.")}};
 function showHistory(){
  let h=JSON.parse(localStorage.getItem("prodHistory")||"[]");
- $("history").innerHTML=h.length?h.map((d,i)=>{
+ const now=new Date(); const monthKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+ const monthDays=h.filter(d=>String(d.date||"").slice(0,7)===monthKey);
+ const monthHours=monthDays.reduce((sum,d)=>sum+Number(d.shiftHours||d.shift||0),0);
+ const rate=Number(localStorage.getItem("prodHourlyRate")||0);
+ const amount=monthHours*rate;
+ const monthName=new Intl.DateTimeFormat("uk-UA",{month:"long",year:"numeric"}).format(new Date(monthKey+"-15T12:00:00"));
+ const listHtml=h.length?h.map((d,i)=>{
   const pct=d.totalActual&&d.totalNorm?(d.totalNorm/d.totalActual*100):null;
   const prev=h[i+1],prevPct=prev&&prev.totalActual&&prev.totalNorm?(prev.totalNorm/prev.totalActual*100):null;
   let compare="";
@@ -401,13 +407,9 @@ function showHistory(){
   const metricHours=hours?`<span class="metric-hours">${hours} h</span>`:"";
   return `<div class="item"><div><b>${d.date} · ${weekday}</b><div class="muted">Зміна: ${shiftLabel}${d.qty?` · ${d.qty} шт. · норма ${fmt(d.totalNorm)} · фактично ${fmt(d.totalActual)}`:" · без виробничих результатів"}</div><div>${compare}</div></div><button class="secondary history-metric" data-day="${i}">${metricPct}${metricHours}</button></div>`
  }).join(""):"Історія порожня.";
- const totalHours=h.reduce((sum,d)=>sum+Number(d.shiftHours||d.shift||0),0);
- const totalDays=h.length;
- const now=new Date(); const monthKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
- const monthDays=h.filter(d=>String(d.date||"").slice(0,7)===monthKey);
- const monthHours=monthDays.reduce((sum,d)=>sum+Number(d.shiftHours||d.shift||0),0);
- const monthName=new Intl.DateTimeFormat("uk-UA",{month:"long",year:"numeric"}).format(new Date(monthKey+"-15T12:00:00"));
- if(h.length){$("history").innerHTML=`<div class="stats" style="margin:10px 0 14px"><div class="stat"><small>Збережено днів</small><b>${totalDays}</b></div><div class="stat"><small>Усього годин за всі дні</small><b>${totalHours} год.</b></div><div class="stat"><small>Годин за ${monthName}</small><b>${monthHours} год.</b></div><div class="stat"><small>Робочих днів за місяць</small><b>${monthDays.length}</b></div></div>`+$("history").innerHTML;}
+ $("history").innerHTML=`<div class="stats" style="margin:10px 0 14px"><div class="stat"><small>Збережено днів</small><b>${h.length}</b></div><div class="stat"><small>Усього годин за всі дні · сума за ${monthName}</small><b>${amount.toLocaleString("uk-PL",{minimumFractionDigits:2,maximumFractionDigits:2})} PLN</b></div><div class="stat"><small>Годин за ${monthName}</small><b>${monthHours} год.</b></div><div class="stat"><small>Робочих днів за місяць</small><input id="hourlyRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="" style="width:100%;max-width:110px;margin-top:8px;font-size:18px;font-weight:600;background:#f8fafc;color:#64748b !important;-webkit-text-fill-color:#64748b;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;box-sizing:border-box"></div></div>`+listHtml;
+ const rateInput=$("hourlyRate");
+ if(rateInput){if(document.activeElement!==rateInput)rateInput.value=localStorage.getItem("prodHourlyRate")||"";rateInput.oninput=()=>{localStorage.setItem("prodHourlyRate",rateInput.value);const pos=rateInput.selectionStart;showHistory();const next=$("hourlyRate");next.focus();try{next.setSelectionRange(pos,pos);}catch(e){}};}
  document.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>renderSavedStats(h[Number(b.dataset.day)]));
  if(h.length&&$("savedDayStats").textContent.includes("з’явиться"))renderSavedStats(h[0]);
 }
