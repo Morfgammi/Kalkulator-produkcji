@@ -15,7 +15,7 @@ label{display:block;font-size:13px;font-weight:650;margin:10px 0 5px}
 input,select{width:100%;min-width:0;max-width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff!important;color:#17202a!important;-webkit-text-fill-color:#17202a!important;font-size:16px;color-scheme:light}select{appearance:auto;-webkit-appearance:menulist;min-height:48px}select option{background:#fff;color:#17202a}
 .norm-display{margin:8px 0 12px;padding:9px 11px;border:1px solid #bbf7d0;border-radius:10px;background:#f0fdf4;color:#166534;font-size:13px}.norm-display strong{color:#15803d;font-size:15px;font-weight:750;margin-left:5px}
 #qty{display:block;width:100%;min-width:0;max-width:100%;font-size:15px;padding:11px 8px;box-sizing:border-box}#drawingPhoto{display:block;width:100%;min-height:48px;padding:10px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;font-size:14px}#drawingPhoto::file-selector-button{padding:9px 12px;margin-right:10px;border:0;border-radius:8px;background:#172f4d;color:white;font-weight:600}#workDate{display:block;width:100%;min-width:0;max-width:100%;height:48px;min-height:48px;font-size:16px;padding:10px 12px;box-sizing:border-box;-webkit-appearance:none;appearance:none;touch-action:manipulation}#workDate::-webkit-date-and-time-value{text-align:left}#workDate::-webkit-calendar-picker-indicator{padding:8px;margin:0;cursor:pointer}#shift{appearance:none;-webkit-appearance:none;padding-right:42px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23172f4d%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:16px 16px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.shift-controls{display:grid;grid-template-columns:76px minmax(0,1fr) 76px;gap:9px;align-items:center;max-width:480px;margin:0 auto}.shift-controls .qtyChoice{min-height:48px;padding:10px 4px;font-size:17px}.shift-controls select{text-align:center;text-align-last:center;font-weight:700}
 .check{display:flex;align-items:center;gap:9px;font-weight:600;margin:12px 0}.check input{width:20px;height:20px}
 button.primary{width:100%;padding:14px;border:0;border-radius:12px;background:#176344;color:white;font-weight:700;font-size:16px;margin-top:14px}
 button.secondary{border:1px solid #cbd5e1;background:white;border-radius:9px;padding:8px 11px}
@@ -44,10 +44,11 @@ h2{font-size:18px;margin:0 0 8px}
 <body>
 <h1>Kalkulator produkcji</h1><div class="sub">Obliczanie normy, czasu rzeczywistego i wydajności</div>
 <div class="panel"><label for="workDate">Data produkcji</label><input id="workDate" type="date">
-<div><label for="shift">Zmiana</label><div class="grid" style="grid-template-columns:1fr auto;align-items:end"><select id="shift"><option value="8">06:00–14:00</option><option value="10">06:00–16:00</option><option value="12">06:00–18:00</option></select><button type="button" class="qtyChoice" id="extraHourBtn" aria-pressed="false">+1h</button></div><div class="muted" id="shiftHoursLabel" style="margin-top:6px;font-size:17px;font-weight:800;color:#176344">Разом: 8 h</div></div></div>
+<div><label for="shift">Zmiana</label><div class="shift-controls"><button type="button" class="qtyChoice" id="minusHourBtn" aria-label="Зменшити зміну на одну годину">-1h</button><select id="shift"><option value="8">06:00–14:00</option><option value="10">06:00–16:00</option><option value="12">06:00–18:00</option></select><button type="button" class="qtyChoice" id="extraHourBtn" aria-label="Збільшити зміну на одну годину">+1h</button></div><div class="muted" id="shiftHoursLabel" style="margin-top:6px;font-size:17px;font-weight:800;color:#176344">Разом: 8 год. · 06:00–14:00</div></div></div>
 <div class="panel" id="timerPanel">
  <h2>Облік фактичного часу</h2>
  <div class="stats"><div class="stat"><small>Час від початку зміни</small><b id="elapsedTotal">00:00:00</b></div><div class="stat"><small>Час від останнього результату</small><b id="elapsedLap">00:00:00</b></div></div>
+ <div style="margin-top:12px;text-align:center"><div class="muted" style="margin-bottom:7px">Додатковий час до наступного результату</div><div class="grid" style="max-width:360px;margin:0 auto"><button type="button" class="qtyChoice" id="addExtraHour">+1 год</button><button type="button" class="qtyChoice" id="addExtraHalfHour">+30 хв</button></div><div id="extraTimeTotal" class="selection-readout" style="margin:7px 0 0">Додано: 00:00:00</div><button type="button" class="secondary" id="resetExtraTime" style="margin-top:5px">Скинути додатковий час</button></div>
  <div class="muted" id="timerState" style="margin-top:8px">Відлік автоматично починається о 06:00.</div>
 </div>
 
@@ -159,19 +160,26 @@ function extraSeconds(kind,model){
 }
 const labels={statyka:"STATYKA",dynamika:"DYNAMIKA",dostawki:"DOSTAWKI"};
 let extraShiftHour=0;
-function selectedShiftHours(){return Number($("shift").value||8)+extraShiftHour}
+function selectedShiftHours(){return Math.max(1,Math.min(14,Number($("shift").value||8)+extraShiftHour))}
 function updateShiftHoursUI(){
- const base=Number($("shift").value||8);
- $("extraHourBtn").classList.toggle("active",extraShiftHour===1);
- $("extraHourBtn").setAttribute("aria-pressed",String(extraShiftHour===1));
- $("shiftHoursLabel").textContent=`Разом: ${selectedShiftHours()} h`;
+ const hours=selectedShiftHours(), endHour=6+hours;
+ $("extraHourBtn").disabled=hours>=14;
+ $("minusHourBtn").disabled=hours<=1;
+ $("extraHourBtn").setAttribute("aria-pressed","false");
+ $("minusHourBtn").setAttribute("aria-pressed","false");
+ $("shiftHoursLabel").textContent=`Разом: ${hours} год. · 06:00–${String(endHour).padStart(2,"0")}:00`;
 }
-$("shift").addEventListener("change",updateShiftHoursUI);
-$("extraHourBtn").addEventListener("click",()=>{extraShiftHour=extraShiftHour?0:1;updateShiftHoursUI()});
+$("shift").addEventListener("change",()=>{extraShiftHour=0;updateShiftHoursUI();saveDraft()});
+$("extraHourBtn").addEventListener("click",()=>{if(selectedShiftHours()<14){extraShiftHour++;updateShiftHoursUI();saveDraft()}});
+$("minusHourBtn").addEventListener("click",()=>{if(selectedShiftHours()>1){extraShiftHour--;updateShiftHoursUI();saveDraft()}});
 updateShiftHoursUI();
 function displayProduct(p){return p==="R - ROTOR"||p==="R"?"R — ROTOR":p==="P - CHEX"||p==="P"?"P — CHEX":p;}
 let current="statyka", entries=[];
-const TIMER_KEY="prodShiftTimer";
+const TIMER_KEY="prodShiftTimer", DRAFT_KEY="prodCurrentDraft", STATS_KEY="prodDayStats";
+let activeDay=localDateString(),pendingExtraSeconds=0;
+function saveDraft(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({date:localDateString(),entries,current,selectedPieces,selectedExtras,shift:$("shift").value,extraShiftHour,pendingExtraSeconds}))}catch(e){console.warn("Не вдалося зберегти поточні дані",e)}}
+function readJSON(key,fallback){try{const v=JSON.parse(localStorage.getItem(key)||"null");return v===null?fallback:v}catch(e){return fallback}}
+function restoreDraft(){const d=readJSON(DRAFT_KEY,null);if(!d)return;if(d.date!==localDateString()){localStorage.removeItem(DRAFT_KEY);return}entries=Array.isArray(d.entries)?d.entries:[];current=["statyka","dynamika","dostawki"].includes(d.current)?d.current:"statyka";selectedPieces=Math.max(1,safeCount(d.selectedPieces,1));if(d.shift&&["8","10","12"].includes(String(d.shift)))$("shift").value=String(d.shift);extraShiftHour=Number.isFinite(Number(d.extraShiftHour))?Math.trunc(Number(d.extraShiftHour)):0;if(d.selectedExtras){selectedExtras.elasticQty=Math.min(4,safeCount(d.selectedExtras.elasticQty));selectedExtras.damperQty=Math.min(2,safeCount(d.selectedExtras.damperQty))}pendingExtraSeconds=Math.max(0,safeCount(d.pendingExtraSeconds,0));}
 function timerData(){try{return JSON.parse(localStorage.getItem(TIMER_KEY)||"null")}catch(e){return null}}
 function localDateString(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${day}`}
 function elapsedSince(ts){return Math.max(0,Math.floor((Date.now()-ts)/1000))}
@@ -212,8 +220,12 @@ function updateLiveStats(){
  setProductivity((norm/43200)*100,"eff12","eff12Card");
 }
 ensureTimer();
-setInterval(()=>{updateTimer();const today=localDateString();if($("workDate").value!==today)$("workDate").value=today;},1000);
+setInterval(()=>{updateTimer();$("workDate").max=localDateString();if($("workDate").value>localDateString())$("workDate").value=localDateString();},1000);
 function fmt(s){s=Math.max(0,Math.round(s));let h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return [h,m,x].map(n=>String(n).padStart(2,"0")).join(":")}
+function updateExtraTimeUI(){if($("extraTimeTotal"))$("extraTimeTotal").textContent="Додано: "+fmt(pendingExtraSeconds);}
+$("addExtraHour").addEventListener("click",()=>{pendingExtraSeconds+=3600;updateExtraTimeUI();saveDraft();});
+$("addExtraHalfHour").addEventListener("click",()=>{pendingExtraSeconds+=1800;updateExtraTimeUI();saveDraft();});
+$("resetExtraTime").addEventListener("click",()=>{pendingExtraSeconds=0;updateExtraTimeUI();saveDraft();});
 function parseTime(v){let a=v.trim().split(":").map(Number);if(a.length!==2||a.some(n=>!Number.isFinite(n)||n<0))return null;return a[0]*3600+a[1]*60}
 function updateSelectionLabels(){
  const p=$("product").value, m=$("model").value;
@@ -252,11 +264,11 @@ function setTab(t){
   $("pieceQty").innerHTML=values.map(v=>`<button type="button" class="qtyChoice${v===1?" active":""}" data-value="${v}" aria-pressed="${v===1?"true":"false"}">${v}</button>`).join("")+`<button type="button" class="qtyChoice" id="addOnePiece">+1</button>`;
   $("pieceQty").style.gridTemplateColumns=`repeat(${values.length+1},1fr)`;
   $("pieceQty").classList.remove("hidden");
-  $("pieceQty").onclick=e=>{const b=e.target.closest("button.qtyChoice");if(!b)return;if(b.id==="addOnePiece"){selectedPieces=safeCount(selectedPieces,1)+1;}else{selectedPieces=Math.max(1,safeCount(b.dataset.value,1));}markChoice("pieceQty",selectedPieces,"pieceQtySelected");};
+  $("pieceQty").onclick=e=>{const b=e.target.closest("button.qtyChoice");if(!b)return;if(b.id==="addOnePiece"){selectedPieces=safeCount(selectedPieces,1)+1;}else{selectedPieces=Math.max(1,safeCount(b.dataset.value,1));}markChoice("pieceQty",selectedPieces,"pieceQtySelected");saveDraft();};
   markChoice("pieceQty",1,"pieceQtySelected");
  }else{$("pieceQty").innerHTML="";$('pieceQtySelected').textContent="";}
  resetExtraButtons();
- options();if($("scanModel"))buildScanForm()
+ options();if($("scanModel"))buildScanForm();saveDraft()
 }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 $("product").addEventListener("change",()=>{const p=$("product").value;const models=norms[current][p]||{};$("model").innerHTML=Object.keys(models).map(m=>`<option value="${m}">${m}</option>`).join("");hint();});$("model").addEventListener("change",()=>{hint();updateSelectionLabels()});
@@ -312,13 +324,14 @@ function resetExtraButtons(){
 $("add").onclick=()=>{
  let qty=current==="dynamika"?1:selectedPieces,product=$("product").value,model=$("model").value,norm=norms[current][product][model],t=timerData();
  if(!t){alert("Не вдалося запустити автоматичний облік часу.");return}
- const now=Date.now(),actual=Math.floor((now-t.last)/1000);
+ const now=Date.now(),actual=Math.floor((now-t.last)/1000)+pendingExtraSeconds;
  if(actual<=0){alert("Минуло замало часу для запису результату.");return}
  let elasticQty=current!=="statyka"?selectedExtras.elasticQty:0,damperQty=current!=="statyka"?selectedExtras.damperQty:0;
  if((elasticQty&&extraNorms.elastic[model]===undefined)||(damperQty&&extraNorms.damper[model]===undefined)){alert("Для цієї моделі ще немає точного часу додаткової операції.");return}
  let adjustedNorm=Number(norm)+safeCount(elasticQty)*Number(extraSeconds("elastic",model)||0)+safeCount(damperQty)*Number(extraSeconds("damper",model)||0);
  if(!Number.isFinite(adjustedNorm)||!Number.isFinite(actual)||!Number.isFinite(qty)){alert("Помилка числових даних. Перевір модель і кількість.");return}
  entries.push({tab:labels[current],product,model,qty,norm:adjustedNorm,actual,elasticQty,damperQty});
+ pendingExtraSeconds=0;updateExtraTimeUI();
  t.last=now;localStorage.setItem(TIMER_KEY,JSON.stringify(t));
  selectedPieces=1;if(current!=="dynamika"){markChoice("pieceQty",selectedPieces,"pieceQtySelected");const plus=$("addOnePiece");if(plus)plus.textContent="+1";}resetExtraButtons();updateTimer();render();
 };
@@ -345,7 +358,7 @@ function renderSavedStats(day){
  el.innerHTML=`<div class="muted">Звіт за ${day.date}. Продуктивність згрупована за типом і номіналом.</div><div class="stats" style="margin-top:10px"><div class="stat"><small>Загальна продуктивність дня</small><b class="${overallClass}">${overallPct===null?"—":overallPct.toFixed(1)+"%"}</b></div><div class="stat"><small>Відпрацьовано годин</small><b>${Number(day.shiftHours||0)} h</b></div></div><h3 style="font-size:15px;margin:12px 0 6px">Рейтинг за продуктивністю</h3>${ranking||'<div class="muted">Немає результатів для рейтингу.</div>'}`;
 }
 
-$("save").onclick=()=>{try{const date=localDateString();$("workDate").value=date;let hist=JSON.parse(localStorage.getItem("prodHistory")||"[]");if(!Array.isArray(hist))hist=[];const totalNorm=entries.reduce((a,e)=>a+(Number(e.norm)||0)*(Number(e.qty)||0),0),totalActual=entries.reduce((a,e)=>a+(Number(e.actual)||0),0),qty=entries.reduce((a,e)=>a+(Number(e.qty)||0),0);const day={date,entries:JSON.parse(JSON.stringify(entries)),totalNorm,totalActual,qty,shiftHours:selectedShiftHours(),baseShiftHours:Number($("shift").value)||8,extraShiftHour,stats:buildDayStats(entries)};hist.unshift(day);localStorage.setItem("prodHistory",JSON.stringify(hist));renderSavedStats(day);entries=[];extraShiftHour=0;updateShiftHoursUI();render();showHistory();alert(qty===0?"День збережено: записано лише робочі години.":"День збережено.")}catch(err){console.error("Помилка збереження дня:",err);alert("Не вдалося зберегти день. Перевір, чи браузер дозволяє зберігати дані сайту.")}};
+$("save").onclick=()=>{try{const date=$("workDate").value||localDateString();if(date>localDateString()){alert("Не можна зберегти запис на майбутню дату.");$("workDate").value=localDateString();return;}let hist=JSON.parse(localStorage.getItem("prodHistory")||"[]");if(!Array.isArray(hist))hist=[];const totalNorm=entries.reduce((a,e)=>a+(Number(e.norm)||0)*(Number(e.qty)||0),0),totalActual=entries.reduce((a,e)=>a+(Number(e.actual)||0),0),qty=entries.reduce((a,e)=>a+(Number(e.qty)||0),0);const day={date,entries:JSON.parse(JSON.stringify(entries)),totalNorm,totalActual,qty,shiftHours:selectedShiftHours(),baseShiftHours:Number($("shift").value)||8,extraShiftHour,stats:buildDayStats(entries)};hist.unshift(day);localStorage.setItem("prodHistory",JSON.stringify(hist));let dayStats=readJSON(STATS_KEY,[]);if(!Array.isArray(dayStats))dayStats=[];dayStats.unshift(day);localStorage.setItem(STATS_KEY,JSON.stringify(dayStats));renderSavedStats(day);entries=[];localStorage.removeItem(DRAFT_KEY);extraShiftHour=0;updateShiftHoursUI();render();showHistory();alert(qty===0?"День збережено: записано лише робочі години.":"День збережено.")}catch(err){console.error("Помилка збереження дня:",err);alert("Не вдалося зберегти день. Перевір, чи браузер дозволяє зберігати дані сайту.")}};
 function showHistory(){
  let h=JSON.parse(localStorage.getItem("prodHistory")||"[]");
  $("history").innerHTML=h.length?h.map((d,i)=>{
@@ -371,14 +384,18 @@ function showHistory(){
  document.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>renderSavedStats(h[Number(b.dataset.day)]));
  if(h.length&&$("savedDayStats").textContent.includes("з’явиться"))renderSavedStats(h[0]);
 }
-function deleteSavedHistory(){
- if(!confirm("Видалити всю історію збережених днів? Цю дію не можна скасувати."))return;
+function deleteStatsOnly(){
+ if(!confirm("Видалити лише статистику та лідерів дня? Історія днів і поточні результати залишаться."))return;
+ localStorage.removeItem(STATS_KEY);
+ $("savedDayStats").textContent="Статистика та лідери дня очищені. Історія днів не змінена.";
+}
+function deleteHistoryOnly(){
+ if(!confirm("Видалити лише історію днів? Статистика та поточні результати залишаться."))return;
  localStorage.removeItem("prodHistory");
- $("savedDayStats").textContent="Статистика з’явиться після збереження дня.";
  showHistory();
 }
-$("clearHistory").addEventListener("click",deleteSavedHistory);
-$("clearHistoryFromHistory").addEventListener("click",deleteSavedHistory);
+$("clearHistory").addEventListener("click",deleteStatsOnly);
+$("clearHistoryFromHistory").addEventListener("click",deleteHistoryOnly);
 // Guided drawing review: user confirms counts; no automatic visual classification yet.
 const scanTypes={statyka:["R - ROTOR","P - CHEX"],dynamika:["R","P"],dostawki:["V","F","E","C","Hw","He","Tłumik"]};
 function buildScanForm(){
@@ -400,16 +417,17 @@ $("scanDamper").addEventListener("change",updateScanSummary);
 $("addScan").addEventListener("click",()=>{
  const model=$("scanModel").value,types=scanTypes[current]||[];let added=0;
  const timer=timerData();if(!timer){alert("Спочатку натисни «Почати зміну з 06:00».");return}
- const now=Date.now(),actual=Math.floor((now-timer.last)/1000);if(actual<=0){alert("Минуло замало часу для запису результату.");return}
+ const now=Date.now(),actual=Math.floor((now-timer.last)/1000)+pendingExtraSeconds;if(actual<=0){alert("Минуло замало часу для запису результату.");return}
  types.forEach((t,i)=>{const q=Math.max(0,Math.min(99,Number($("scanCount"+i).value)||0));if(q){entries.push({tab:labels[current],product:t,model,qty:q,norm:norms[current][t][model],actual:Math.round(actual*q/Math.max(1,types.reduce((sum,_,j)=>sum+Math.max(0,Number($("scanCount"+j).value)||0),0))),elastic:false,damper:false});added+=q}});
  if(!added){alert("Вкажи хоча б одну секцію.");return}
  if(current!=="statyka"&&($("scanElastic").checked||$("scanDamper").checked)){
    const base=entries[entries.length-1];const extra=( $("scanElastic").checked?extraSeconds("elastic",model):0)+($("scanDamper").checked?extraSeconds("damper",model):0);
    base.norm+=extra;
  }
- timer.last=now;localStorage.setItem(TIMER_KEY,JSON.stringify(timer));updateTimer();$("scanElastic").checked=false;$("scanDamper").checked=false;
+ timer.last=now;localStorage.setItem(TIMER_KEY,JSON.stringify(timer));pendingExtraSeconds=0;updateExtraTimeUI();saveDraft();updateTimer();$("scanElastic").checked=false;$("scanDamper").checked=false;
  types.forEach((_,i)=>$("scanCount"+i).value=0);updateScanSummary();render();alert("Підтверджені секції додано до результатів дня.");
 });
-$("workDate").value=localDateString();$("workDate").readOnly=true;$("workDate").setAttribute("aria-readonly","true");$("workDate").style.pointerEvents="none";setTab("statyka");
-markChoice("elasticQty",0,"elasticQtySelected");markChoice("damperQty",0,"damperQtySelected");buildScanForm();render();showHistory();updateTimer();
+$("workDate").value=localDateString();$("workDate").max=localDateString();$("workDate").readOnly=false;$("workDate").removeAttribute("aria-readonly");$("workDate").style.pointerEvents="auto";$("workDate").addEventListener("change",()=>{const today=localDateString();$("workDate").max=today;if($("workDate").value>today){$("workDate").value=today;alert("Не можна вибрати майбутню дату.");}saveDraft();});
+restoreDraft();const restoredTab=current;setTab(restoredTab);restoreDraft();updateExtraTimeUI();markChoice("pieceQty",selectedPieces,"pieceQtySelected");markChoice("elasticQty",selectedExtras.elasticQty,"elasticQtySelected");markChoice("damperQty",selectedExtras.damperQty,"damperQtySelected");updateShiftHoursUI();buildScanForm();render();showHistory();if(!localStorage.getItem(STATS_KEY)){const oldHistory=readJSON("prodHistory",[]);if(Array.isArray(oldHistory)&&oldHistory.length)localStorage.setItem(STATS_KEY,JSON.stringify(oldHistory));}const savedStats=readJSON(STATS_KEY,[]);if(Array.isArray(savedStats)&&savedStats.length)renderSavedStats(savedStats[0]);updateTimer();
+setInterval(()=>{const today=localDateString();if(today!==activeDay){activeDay=today;entries=[];localStorage.removeItem(DRAFT_KEY);$("workDate").value=today;ensureTimer();render();}},1000);
 </script></body></html>
