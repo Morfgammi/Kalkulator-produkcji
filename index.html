@@ -42,7 +42,7 @@ h2{font-size:18px;margin:0 0 8px}
 .history-metric .metric-pct{font-size:15px}
 #hourlyRate{width:100%;max-width:110px;margin-top:8px;padding:8px 10px;box-sizing:border-box;font-size:16px;font-weight:600;background:#f1f5f9 !important;color:#64748b !important;-webkit-text-fill-color:#64748b !important;border:1px solid #cbd5e1;border-radius:10px;box-shadow:none;appearance:none;-webkit-appearance:none}#hourlyRate::placeholder{color:#94a3b8 !important;-webkit-text-fill-color:#94a3b8 !important}</style></head>
 <body>
-<h1>Kalkulator produkcji</h1><div class="sub">Obliczanie normy, czasu rzeczywistego i wydajności</div>
+<h1>Kalkulator produkcji</h1><div class="sub"></div>
 <div class="panel"><label for="workDate">Data produkcji</label><input id="workDate" type="date">
 <div><label for="shift">Zmiana</label><div class="shift-controls"><button type="button" class="qtyChoice" id="minusHourBtn" aria-label="Зменшити зміну на одну годину">-1h</button><select id="shift"><option value="8">06:00–14:00</option><option value="10">06:00–16:00</option><option value="12">06:00–18:00</option></select><button type="button" class="qtyChoice" id="extraHourBtn" aria-label="Збільшити зміну на одну годину">+1h</button></div><div class="muted" id="shiftHoursLabel" style="margin-top:6px;font-size:17px;font-weight:800;color:#176344">Разом: 8 год. · 06:00–14:00</div></div></div>
 <div class="panel" id="timerPanel">
@@ -95,7 +95,7 @@ h2{font-size:18px;margin:0 0 8px}
 </div>
 <div id="pieceQtyWrap"><label>Кількість штук</label><div class="qtyButtons" id="pieceQty"></div><div id="pieceQtySelected" class="selection-readout" aria-live="polite">Вибрано: 1</div></div>
 <div id="dynamikaQtyNote" class="notice hidden"></div>
-<div class="notice">Фактичний час визначається автоматично: від початку зміни або від попереднього натискання «Додати результат».</div>
+<div class="notice"></div>
 <div id="extrasWrap" class="hidden">
 <label>Połączenie elastyczne</label><div class="qtyButtons" id="elasticQty"><button type="button" class="qtyChoice active" data-value="0">0</button><button type="button" class="qtyChoice" data-value="1">1</button><button type="button" class="qtyChoice" data-value="2">2</button><button type="button" class="qtyChoice" id="addOneElastic">+1</button></div><div id="elasticQtySelected" class="selection-readout" aria-live="polite">Вибрано: 0</div>
 <div class="notice" id="elasticTime">Час за одну еластичку для вибраної моделі.</div>
@@ -202,7 +202,7 @@ function updateTimer(){
  const t=ensureTimer();
  $("elapsedTotal").textContent=fmt(elapsedSince(t.start));
  $("elapsedLap").textContent=fmt(elapsedSince(t.last));
- $("timerState").textContent="Відлік автоматично йде від 06:00. Після додавання результату фіксується час від попереднього запису; загальний таймер не зупиняється.";
+ $("timerState").textContent=" ";
  updateLiveStats();
 }
 function updateLiveStats(){
@@ -405,13 +405,23 @@ function showHistory(){
   const shiftLabel=hours?`06:00–${String(6+hours).padStart(2,"0")}`:`зміна не вказана`;
   const metricPct=pct===null?"":`<span class="metric-pct ${effClass(pct)}">${pct.toFixed(1)}%</span>`;
   const metricHours=hours?`<span class="metric-hours">${hours} h</span>`:"";
-  return `<div class="item"><div><b>${d.date} · ${weekday}</b><div class="muted">Зміна: ${shiftLabel}${d.qty?` · ${d.qty} шт. · норма ${fmt(d.totalNorm)} · фактично ${fmt(d.totalActual)}`:" · без виробничих результатів"}</div><div>${compare}</div></div><button class="secondary history-metric" data-day="${i}">${metricPct}${metricHours}</button></div>`
+  return `<div class="item"><div><b>${d.date} · ${weekday}</b><div class="muted">Зміна: ${shiftLabel}${d.qty?` · ${d.qty} шт. · норма ${fmt(d.totalNorm)} · фактично ${fmt(d.totalActual)}`:" · без виробничих результатів"}</div><div>${compare}</div></div><div style="display:flex;align-items:center;gap:6px"><button class="secondary history-metric" data-day="${i}">${metricPct}${metricHours}</button><button type="button" data-delete-day="${i}" aria-label="Видалити день ${d.date}" title="Видалити цей день" style="width:25px;height:25px;min-width:25px;padding:0;border:0;border-radius:50%;background:#dc2626;color:#fff;font-size:17px;line-height:25px;font-weight:700">×</button></div></div>`
  }).join(""):"Історія порожня.";
  $("history").innerHTML=`<div class="stats" style="margin:10px 0 14px"><div class="stat"><small>Збережено днів</small><b>${h.length}</b></div><div class="stat"><small>Усього годин за всі дні · сума за ${monthName}</small><b>${amount.toLocaleString("uk-PL",{minimumFractionDigits:2,maximumFractionDigits:2})} PLN</b></div><div class="stat"><small>Годин за ${monthName}</small><b>${monthHours} год.</b></div><div class="stat"><small>Робочих днів за місяць</small><input id="hourlyRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="" style="width:100%;max-width:110px;margin-top:8px;font-size:18px;font-weight:600;background:#f8fafc;color:#64748b !important;-webkit-text-fill-color:#64748b;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;box-sizing:border-box"></div></div>`+listHtml;
  const rateInput=$("hourlyRate");
  if(rateInput){if(document.activeElement!==rateInput)rateInput.value=localStorage.getItem("prodHourlyRate")||"";rateInput.oninput=()=>{localStorage.setItem("prodHourlyRate",rateInput.value);const pos=rateInput.selectionStart;showHistory();const next=$("hourlyRate");next.focus();try{next.setSelectionRange(pos,pos);}catch(e){}};}
  document.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>renderSavedStats(h[Number(b.dataset.day)]));
+ document.querySelectorAll("[data-delete-day]").forEach(b=>b.onclick=()=>deleteHistoryDay(Number(b.dataset.deleteDay)));
  if(h.length&&$("savedDayStats").textContent.includes("з’явиться"))renderSavedStats(h[0]);
+}
+function deleteHistoryDay(index){
+ const h=JSON.parse(localStorage.getItem("prodHistory")||"[]");
+ if(index<0||index>=h.length)return;
+ const day=h[index];
+ if(!confirm(`Видалити запис за ${day.date}?`))return;
+ h.splice(index,1);
+ localStorage.setItem("prodHistory",JSON.stringify(h));
+ showHistory();
 }
 function deleteStatsOnly(){
  if(!confirm("Видалити лише статистику та лідерів дня? Історія днів і поточні результати залишаться."))return;
